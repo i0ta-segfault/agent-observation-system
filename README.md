@@ -1,287 +1,740 @@
 # LLM Agent Observation System
 
-An end-to-end system for monitoring, evaluating, and optimizing LLM agents with local models.
+An end-to-end observability and evaluation system for LLM-powered agents using local models, tracing instrumentation, SQLite persistence, FastAPI, and Grafana dashboards.
 
-## 📋 Project Overview
+---
 
-This system implements a complete observability and optimization pipeline for LLM agents:
+# 📋 Project Overview
 
-- **Agent Framework**: Modular agent system with Email Classification and PDF Extraction
-- **Observability**: Prometheus metrics and Grafana dashboards
-- **Evaluation**: Automated benchmarking and performance analysis
-- **Optimization**: Behavior analysis and cost simulation
+This project implements a lightweight observability stack inspired by OpenTelemetry concepts for agentic AI systems.
 
-## 🏗️ Architecture
+The system provides:
 
-```
+- Modular AI agents
+- Runtime instrumentation
+- Workflow tracing
+- Nested spans
+- Latency monitoring
+- Token estimation
+- Error tracking
+- Persistent telemetry storage
+- Grafana dashboard visualization
+- LangGraph-compatible instrumentation wrappers
+
+The goal is to monitor and analyze the internal execution flow of AI agents similarly to how observability platforms monitor distributed backend systems.
+
+---
+
+# 🏗️ System Architecture
+
+```text
 User/Test Script
       │
       ▼
-FastAPI Gateway (Phase 2)
+FastAPI Telemetry Gateway
       │
       ▼
-LLM Agents (Phase 1) ✅
+Instrumented Agent Runtime
+      │
+      ├── EmailAgent
+      ├── PDFAgent
+      └── LangGraph-compatible nodes
       │
       ▼
-Local LLM (Ollama)
+Ollama Local LLM
       │
       ▼
-Metrics + Evaluation
+Tracing + Span Generation
       │
-      ├── Prometheus (Phase 4)
-      └── Evaluation Engine (Phase 5)
-              │
-              ▼
-           Grafana
+      ▼
+SQLite Observability Store
+      │
+      ▼
+Grafana Dashboards
 ```
 
-## Phase 1: Agent Framework (Wrapper-Based) Completed
+---
 
-### Implemented Agents
+# 🔭 Observability Pipeline
 
-1. **Email Classification Agent**
-   - Classifies emails into categories (invoice, spam, urgent, etc.)
-   - Configurable categories
-   - Batch processing support
+The system includes a lightweight observability stack inspired by OpenTelemetry.
 
-2. **PDF Extraction Agent**
-   - Extracts text from PDFs using pdfplumber
-   - Optional OCR support for image-based PDFs
-   - Multiple processing modes: summarize, extract_info, classify
+## Features
 
-### Features
+- Workflow-level tracing
+- Nested spans
+- Span hierarchy
+- Latency tracking
+- Token estimation
+- Error monitoring
+- Trace persistence
+- Dashboard visualization
+- Workflow DAG reconstruction
 
-- Wrapper-first runtime (no hard inheritance requirement)
-- Built-in trace and metrics collection (latency, tokens, success rate)
-- ✅ Ollama integration for local LLM inference
-- ✅ Comprehensive error handling and logging
-- ✅ Test suite with sample data
+---
 
-## Current Architecture
+# 📡 Span Types
 
-The project uses composition and wrappers:
+The runtime automatically instruments:
 
-- `agents/runtime.py`: generic runtime for `prompt_builder -> llm_call -> parser`
-- `agents/instrumentation.py`: reusable wrappers for LLM calls, tools, and nodes
-- `agents/email_agent.py`: email classifier built on runtime + wrappers
-- `agents/pdf_agent.py`: pdfplumber/OCR extractor built on runtime + wrappers
+- `workflow`
+- `prompt_builder`
+- `llm_call`
+- `parser`
 
-This keeps agents decoupled and easier to extend across frameworks.
+Each execution generates:
 
-## LangGraph Status
+- `trace_id`
+- `span_id`
+- `parent_span_id`
 
-- Is LangGraph orchestrating workflows right now: **No**
-- Are we compatible with LangGraph instrumentation: **Yes**
+allowing complete workflow reconstruction.
 
-You can instrument LangGraph nodes using `instrument_langgraph_node(...)`.
+---
 
-Example:
+# 🧠 Implemented Agents
 
-```python
-from agents import MetricsCollector, instrument_langgraph_node
+## 1. Email Classification Agent
 
-collector = MetricsCollector("my_graph")
+Features:
 
-def planner_node(state):
-      return {"next": "tool", **state}
+- Email categorization
+- Configurable categories
+- Batch processing
+- Runtime tracing
+- Latency monitoring
 
-wrapped_planner = instrument_langgraph_node(planner_node, collector, "planner")
+Supported categories:
+
+- invoice
+- spam
+- urgent
+- general
+- support
+- marketing
+- notification
+
+---
+
+## 2. PDF Extraction Agent
+
+Features:
+
+- PDF text extraction
+- OCR support
+- Summarization
+- Classification
+- Information extraction
+- Runtime tracing
+
+Processing modes:
+
+- summarize
+- extract_info
+- classify
+- custom analysis
+
+---
+
+# ⚙️ Runtime Architecture
+
+The project uses composition and wrappers instead of inheritance-heavy design.
+
+## Core Runtime Flow
+
+```text
+prompt_builder
+      ↓
+llm_call
+      ↓
+parser
 ```
 
-## When LangGraph Workflow Will Be Added
+with automatic tracing and instrumentation around every stage.
 
-LangGraph orchestration is best added as a separate phase after API wiring:
+---
 
-1. Phase 2: FastAPI gateway for unified run/evaluate endpoints
-2. Phase 3: LangGraph workflow graph (planner/tool/reasoning loops)
-3. Phase 4: Prometheus + Grafana for exported observability
+# 📦 Core Components
 
-## 📦 Installation
+## `agents/runtime.py`
 
-### Prerequisites
+Generic runtime responsible for:
 
-1. **Install Ollama** (for local LLM inference)
-   ```bash
-   # Visit: https://ollama.ai/download
-   # After installation, pull a model:
-   ollama pull llama3
-   ```
+- orchestrating execution
+- tracing spans
+- handling errors
+- token estimation
+- latency tracking
 
-2. **Python 3.9+** required
+---
 
-### Setup
+## `agents/instrumentation.py`
+
+Provides:
+
+- tracing
+- spans
+- exporters
+- instrumentation wrappers
+- token estimation
+- event persistence
+- LangGraph compatibility
+
+---
+
+## `gateway/main.py`
+
+FastAPI telemetry ingestion gateway.
+
+Receives:
+
+```http
+POST /events
+```
+
+and stores telemetry into SQLite.
+
+---
+
+## `gateway/storage.py`
+
+SQLite persistence layer for traces and spans.
+
+---
+
+# 📦 Installation
+
+## Prerequisites
+
+### 1. Install Ollama
+
+Download:
+
+https://ollama.ai/download
+
+Pull a model:
 
 ```bash
-# Clone the repository
-git clone <your-repo-url>
+ollama pull phi3:mini
+```
+
+or:
+
+```bash
+ollama pull llama3
+```
+
+---
+
+### 2. Python 3.9+
+
+Required.
+
+---
+
+# 🔧 Setup
+
+## Clone Repository
+
+```bash
+git clone https://github.com/nandikabansal/agent-observation-system.git  # if PR not yet merged use this link https://github.com/i0ta-segfault/agent-observation-system.git
 cd agent-observation-system
+```
 
-# Create virtual environment (recommended)
+---
+
+## Create Virtual Environment
+
+### Windows
+
+```powershell
 python -m venv venv
+.\venv\Scripts\activate
+```
 
-# Activate virtual environment
-# Windows:
-venv\Scripts\activate
-# Linux/Mac:
+### Linux / WSL
+
+```bash
+python -m venv venv
 source venv/bin/activate
+```
 
-# Install dependencies
+---
+
+## Install Dependencies
+
+```bash
 pip install -r requirements.txt
 ```
 
-## 🧪 Testing Phase 1
+---
 
-### Start Ollama
+# 🚀 Running The System
+
+## 1. Start Ollama
+
 ```bash
-# Make sure Ollama is running
 ollama serve
 ```
 
-### Run Tests
+---
+
+## 2. Start FastAPI Gateway
+
+From project root:
+
+```bash
+uvicorn gateway.main:app --reload
+```
+
+---
+
+## 3. Run Agent Tests
+
 ```bash
 python test_agents.py
 ```
 
-This will test:
-- Email classification with sample emails
-- PDF text extraction (create `test_data/sample.pdf` first)
-- Agent metrics tracking
+This will:
 
-## 📁 Project Structure
-
-```
-agent-observation-system/
-│
-├── agents/                 # Agent implementations
-│   ├── __init__.py
-│   ├── instrumentation.py # Wrappers and tracing utilities
-│   ├── runtime.py         # Generic composable agent runtime
-│   ├── email_agent.py     # Email classifier
-│   └── pdf_agent.py       # PDF extractor
-│
-├── test_agents.py         # Test script
-├── requirements.txt       # Python dependencies
-├── QUICKSTART.md          # Quick start guide
-└── README.md
-```
-
-## 🔧 Usage Examples
-
-### Email Classification
-
-```python
-from agents import EmailAgent
-
-# Initialize agent
-email_agent = EmailAgent()
-
-# Classify an email
-result = email_agent.run({
-    "subject": "Invoice #12345",
-    "body": "Payment due in 30 days"
-})
-
-print(result["output"]["category"])  # "invoice"
-print(result["metrics"]["latency"])  # Response time
-```
-
-### PDF Extraction
-
-```python
-from agents import PDFAgent
-
-# Initialize agent
-pdf_agent = PDFAgent(use_ocr=False)
-
-# Extract text only
-extraction = pdf_agent.extract_only("document.pdf")
-print(extraction["text"])
-
-# Summarize PDF
-summary = pdf_agent.process_pdf("document.pdf", task="summarize")
-print(summary["output"]["processed_output"])
-```
-
-## 📊 Agent Metrics
-
-Each agent automatically tracks:
-- **Total Requests**: Total number of requests processed
-- **Success Rate**: Percentage of successful requests
-- **Average Latency**: Mean response time in seconds
-- **Total Tokens**: Estimated token usage (for cost simulation)
-
-```python
-# Get agent metrics
-trace_id = result["trace_id"]
-print(f"Success Rate: {metrics['success_rate']:.2%}")
-print(f"Avg Latency: {metrics['average_latency']:.2f}s")
-
-# Get recent traces
-traces = email_agent.get_recent_traces(limit=5)
-print(traces[-1]["event_type"])
-```
-
-## 🎯 Next Phases
-
-### Phase 2: FastAPI Gateway
-- API endpoints for agents
-- Request routing and validation
-- API documentation
-
-### Phase 3: Ollama Integration Enhancement
-- Model switching
-- Parameter tuning
-- Response caching
-
-### Phase 4: Observability
-- Prometheus metrics
-- Grafana dashboards
-- Real-time monitoring
-
-### Phase 5: Evaluation System
-- Automated benchmarks
-- Performance comparison
-- Test datasets
-
-### Phase 6: Optimization
-- Behavior analysis
-- Cost simulation
-- A/B testing
-
-## 🛠️ Technology Stack
-
-- **Language**: Python 3.9+
-- **LLM Runtime**: Ollama (Llama3, Mistral, Phi-3)
-- **PDF Processing**: pdfplumber
-- **Future**: FastAPI, Prometheus, Grafana, Pandas, Scikit-learn
-
-## 📝 Development Timeline
-
-- [x] **Week 1-2**: Phase 1 - Agent Framework ✅
-- [ ] **Week 3**: Phase 2 - API Gateway
-- [ ] **Week 4**: Phase 3-4 - Observability
-- [ ] **Week 5**: Phase 5 - Evaluation
-- [ ] **Week 6**: Phase 6 - Optimization
-
-## 🤝 Contributing
-
-This is a learning project. Feel free to:
-- Add new agents
-- Improve existing agents
-- Add test cases
-- Optimize performance
-
-## 📄 License
-
-MIT License
-
-## 🔗 Resources
-
-- [Ollama Documentation](https://github.com/ollama/ollama)
-- [FastAPI Documentation](https://fastapi.tiangolo.com/)
-- [Prometheus Documentation](https://prometheus.io/docs/)
-- [Grafana Documentation](https://grafana.com/docs/)
+- execute agents
+- generate traces
+- persist telemetry
+- populate SQLite database
+- feed Grafana dashboards
 
 ---
 
-**Current Status**: Phase 1 Complete ✅ | Ready for Phase 2: FastAPI Gateway
+# 🗄️ Observability Storage
+
+Telemetry is stored in:
+
+```text
+observability.db
+```
+
+and optionally:
+
+```text
+observability_llama3.db
+```
+
+These databases contain:
+
+- traces
+- spans
+- latency data
+- token estimates
+- failures
+- metadata
+
+---
+
+# 📈 Grafana Dashboard Setup
+
+## Install Grafana OSS
+
+Download:
+
+https://grafana.com/grafana/download
+
+---
+
+## Install SQLite Plugin
+
+Inside Grafana `bin/` directory:
+
+```powershell
+.\grafana.exe cli plugins install frser-sqlite-datasource
+```
+
+Restart Grafana afterward.
+
+---
+
+## Start Grafana
+
+```powershell
+.\grafana.exe server
+```
+
+Open:
+
+```text
+http://localhost:3000
+```
+
+Default login:
+
+```text
+admin / admin
+```
+
+---
+
+# 🔌 Add SQLite Datasource
+
+Go to:
+
+```text
+Connections → Data Sources
+```
+
+Add:
+
+```text
+frser-sqlite-datasource
+```
+
+---
+
+## Database Path Examples
+
+### Windows
+
+```text
+D:\Programming\agent-observation-system\observability.db
+```
+
+### WSL
+
+```text
+/mnt/d/Programming/agent-observation-system/observability.db
+```
+
+---
+
+# 📊 Example Grafana Queries
+
+---
+
+## Workflow Latency
+
+```sql
+SELECT
+  start_ts * 1000 AS time,
+  latency_seconds
+FROM traces
+WHERE event_type = 'workflow'
+ORDER BY start_ts;
+```
+
+Visualization:
+
+```text
+Time Series
+```
+
+---
+
+## Email Agent Latency
+
+```sql
+SELECT
+  start_ts * 1000 AS time,
+  latency_seconds
+FROM traces
+WHERE event_type = 'workflow'
+AND name = 'EmailClassifier'
+ORDER BY start_ts;
+```
+
+Visualization:
+
+```text
+Time Series
+```
+
+---
+
+## PDF Agent Latency
+
+```sql
+SELECT
+  start_ts * 1000 AS time,
+  latency_seconds
+FROM traces
+WHERE event_type = 'workflow'
+AND name = 'PDFExtractor'
+ORDER BY start_ts;
+```
+
+Visualization:
+
+```text
+Time Series
+```
+
+---
+
+## Slowest Operations
+
+```sql
+SELECT
+  name,
+  AVG(latency_seconds) AS avg_latency
+FROM traces
+GROUP BY name
+ORDER BY avg_latency DESC;
+```
+
+Visualization:
+
+```text
+Bar Chart
+```
+
+---
+
+## Failure Analysis
+
+```sql
+SELECT
+  name,
+  COUNT(*) AS failures
+FROM traces
+WHERE success = 0
+GROUP BY name;
+```
+
+Visualization:
+
+```text
+Bar Chart
+```
+
+---
+
+## Span Distribution
+
+```sql
+SELECT
+  event_type,
+  COUNT(*) AS total
+FROM traces
+GROUP BY event_type;
+```
+
+Visualization:
+
+```text
+Pie Chart
+```
+
+---
+
+## Workflow DAG / Span Relationships
+
+```sql
+SELECT
+  trace_id,
+  span_id,
+  parent_span_id,
+  event_type,
+  name
+FROM traces
+ORDER BY start_ts;
+```
+
+Visualization:
+
+```text
+Table
+```
+
+---
+
+# 🧪 LangGraph Compatibility
+
+Current status:
+
+- LangGraph orchestration: ❌ Not yet implemented
+- LangGraph instrumentation compatibility: ✅ Supported
+
+Example:
+
+```python
+from agents import instrument_langgraph_node
+
+wrapped_node = instrument_langgraph_node(
+    node_fn,
+    collector,
+    "planner",
+)
+```
+
+---
+
+# 🎯 Development Phases
+
+---
+
+# ✅ Phase 1 — Agent Framework
+
+Completed.
+
+Implemented:
+
+- Email Classification Agent
+- PDF Extraction Agent
+- Wrapper-based runtime architecture
+- Ollama local inference integration
+- Error handling
+- Test suite
+
+---
+
+# ✅ Phase 2 — FastAPI Gateway
+
+Completed.
+
+Implemented:
+
+- FastAPI telemetry ingestion server
+- Unified event pipeline
+- Request routing
+- SQLite integration
+- Telemetry persistence
+
+---
+
+# ✅ Phase 3 — Runtime Instrumentation
+
+Completed.
+
+Implemented:
+
+- Span tracing
+- Workflow tracing
+- Nested instrumentation
+- Trace IDs
+- Parent-child span relationships
+- Token estimation
+- Runtime wrappers
+
+---
+
+# ✅ Phase 4 — Observability Dashboarding
+
+Completed.
+
+Implemented:
+
+- SQLite persistence
+- Grafana integration
+- Dashboard panels
+- Latency visualization
+- Span distribution visualization
+- Failure analysis
+- Workflow DAG reconstruction
+
+---
+
+# 🚧 Phase 5 — Evaluation System
+
+In Progress.
+
+Planned Features:
+
+- Automated benchmarking
+- Test datasets
+- Accuracy scoring
+- Hallucination analysis
+- Agent comparison
+- Response quality evaluation
+- Latency benchmarking across models
+- Evaluation reports
+
+Potential Stack:
+
+- pandas
+- scikit-learn
+- matplotlib
+
+---
+
+# 🚧 Phase 6 — Optimization System
+
+In Progress.
+
+Planned Features:
+
+- Cost simulation
+- Token optimization
+- Prompt optimization
+- Behavior analysis
+- Response caching
+- A/B testing
+- Adaptive routing
+- Multi-model optimization
+
+Potential Features:
+
+- Dynamic model switching
+- Prompt compression
+- Smart retries
+- Caching layers
+
+---
+
+# 📁 Project Structure
+
+```text
+agent-observation-system/
+│
+├── agents/
+│   ├── __init__.py
+│   ├── instrumentation.py
+│   ├── runtime.py
+│   ├── email_agent.py
+│   └── pdf_agent.py
+│
+├── gateway/
+│   ├── main.py
+│   └── storage.py
+│
+├── observability.db
+├── observability_llama3.db
+├── test_agents.py
+├── requirements.txt
+├── QUICKSTART.md
+└── README.md
+```
+
+---
+
+# 🛠️ Technology Stack
+
+## Core
+
+- Python 3.9+
+- Ollama
+- SQLite
+- FastAPI
+- Grafana OSS
+
+---
+
+## AI Runtime
+
+- Llama3
+- Phi3
+- Mistral
+
+---
+
+## PDF Processing
+
+- pdfplumber
+- pytesseract (optional OCR)
+
+---
+
+# 📌 Notes
+
+Included sample databases:
+
+- `observability.db`
+- `observability_llama3.db`
+
+can be directly mounted into Grafana for instant dashboard visualization without rerunning agents.
