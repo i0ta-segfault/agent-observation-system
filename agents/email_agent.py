@@ -36,7 +36,7 @@ class EmailAgent:
     def __init__(
         self,
         categories: list = None,
-        model: str = "phi3:mini",
+        model: str = "qwen2.5:3b",
         ollama_url: str = "http://localhost:11434",
     ):
 

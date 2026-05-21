@@ -2,6 +2,10 @@ import sqlite3
 import json
 
 
+# =========================================================
+# SQLITE CONNECTION
+# =========================================================
+
 conn = sqlite3.connect(
     "observability.db",
     check_same_thread=False,
@@ -9,6 +13,10 @@ conn = sqlite3.connect(
 
 cursor = conn.cursor()
 
+
+# =========================================================
+# TRACE TABLE
+# =========================================================
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS traces (
@@ -36,12 +44,39 @@ CREATE TABLE IF NOT EXISTS traces (
 
     tokens INTEGER,
 
-    metadata TEXT
+    metadata TEXT,
+
+    start_iso TEXT,
+    end_iso TEXT
 )
 """)
 
 conn.commit()
 
+
+# =========================================================
+# SAFE JSON SERIALIZATION
+# =========================================================
+
+def safe_json(data):
+
+    try:
+
+        return json.dumps(
+            data,
+            default=str,
+        )
+
+    except Exception:
+
+        return json.dumps(
+            str(data)
+        )
+
+
+# =========================================================
+# STORE EVENT
+# =========================================================
 
 def store_event(event):
 
@@ -69,33 +104,54 @@ def store_event(event):
 
         tokens,
 
-        metadata
+        metadata,
 
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        start_iso,
+        end_iso
+
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
 
         event["trace_id"],
+
         event["span_id"],
-        event["parent_span_id"],
+
+        event.get("parent_span_id"),
 
         event["event_type"],
+
         event["name"],
 
         event["start_ts"],
+
         event["end_ts"],
 
         event["latency_seconds"],
 
         int(event["success"]),
 
-        json.dumps(event.get("input")),
-        json.dumps(event.get("output")),
+        safe_json(event.get("input")),
+
+        safe_json(event.get("output")),
 
         event.get("error"),
 
         event.get("tokens", 0),
 
-        json.dumps(event.get("metadata", {}))
+        safe_json(
+            event.get("metadata", {})
+        ),
+
+        event.get("start_iso"),
+
+        event.get("end_iso"),
     ))
 
     conn.commit()
+
+    print(
+        f"[STORAGE] "
+        f"{event['event_type']} | "
+        f"{event['name']} | "
+        f"tokens={event.get('tokens', 0)}"
+    )

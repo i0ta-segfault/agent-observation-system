@@ -10,6 +10,7 @@ import importlib
 from pathlib import Path
 
 from .runtime import AgentRuntime, OllamaClient
+from .instrumentation import get_tracer
 
 
 class PDFAgent:
@@ -17,7 +18,7 @@ class PDFAgent:
     def __init__(
         self,
         use_ocr: bool = False,
-        model: str = "phi3:mini",
+        model: str = "qwen2.5:3b",
         ollama_url: str = "http://localhost:11434",
     ):
 
@@ -28,6 +29,8 @@ class PDFAgent:
         self.use_ocr = use_ocr
 
         self._last_extraction = {}
+
+        self.tracer = get_tracer()
 
         self._ollama = OllamaClient(
             model=model,
@@ -75,44 +78,81 @@ class PDFAgent:
 
                 metadata["total_pages"] = len(pdf.pages)
 
+                print(
+                    f"\n[PDF DEBUG] "
+                    f"TOTAL PAGES: {metadata['total_pages']}"
+                )
+
                 for page_num, page in enumerate(pdf.pages, 1):
 
-                    text = page.extract_text()
+                    print(
+                        f"\n[PDF DEBUG] "
+                        f"PROCESSING PAGE {page_num}"
+                    )
 
-                    if text and text.strip():
+                    page_start = page_num
 
-                        all_text.append(
-                            f"--- Page {page_num} ---\n{text}"
-                        )
+                    with self.tracer.span(
+                        event_type="pdf_page_extract",
+                        name=f"PDFExtractor.page_{page_num}",
+                    ):
 
-                        metadata["pages_with_text"] += 1
+                        text = page.extract_text()
 
-                    elif self.use_ocr:
+                        if text and text.strip():
 
-                        try:
-
-                            image = page.to_image()
-
-                            pytesseract = importlib.import_module(
-                                "pytesseract"
+                            print(
+                                f"[PDF DEBUG] "
+                                f"TEXT FOUND ON PAGE {page_num}"
                             )
 
-                            ocr_text = pytesseract.image_to_string(
-                                image.original
+                            all_text.append(
+                                f"--- Page {page_num} ---\n{text}"
                             )
 
-                            if ocr_text.strip():
+                            metadata["pages_with_text"] += 1
 
-                                all_text.append(
-                                    f"--- Page {page_num} OCR ---\n{ocr_text}"
+                        elif self.use_ocr:
+
+                            print(
+                                f"[PDF DEBUG] "
+                                f"RUNNING OCR ON PAGE {page_num}"
+                            )
+
+                            try:
+
+                                image = page.to_image()
+
+                                pytesseract = importlib.import_module(
+                                    "pytesseract"
                                 )
 
-                                metadata["pages_with_text"] += 1
+                                ocr_text = pytesseract.image_to_string(
+                                    image.original
+                                )
 
-                        except ImportError:
-                            pass
+                                if ocr_text.strip():
+
+                                    all_text.append(
+                                        f"--- Page {page_num} OCR ---\n{ocr_text}"
+                                    )
+
+                                    metadata["pages_with_text"] += 1
+
+                            except ImportError:
+                                pass
+
+                    print(
+                        f"[PDF DEBUG] "
+                        f"PAGE {page_num} COMPLETE"
+                    )
 
             combined_text = "\n\n".join(all_text)
+
+            print(
+                f"\n[PDF DEBUG] "
+                f"TOTAL TEXT SIZE: {len(combined_text)} chars"
+            )
 
             return {
                 "success": True,
@@ -126,12 +166,49 @@ class PDFAgent:
 
         except Exception as exc:
 
+            print(
+                f"\n[PDF ERROR] {exc}"
+            )
+
             return {
                 "success": False,
                 "error": str(exc),
                 "text": "",
                 "metadata": {},
             }
+
+    # =====================================================
+    # CHUNKING
+    # =====================================================
+
+    def chunk_text(
+        self,
+        text: str,
+        chunk_size: int = 1200,
+    ):
+
+        chunks = []
+
+        current = ""
+
+        paragraphs = text.split("\n")
+
+        for para in paragraphs:
+
+            if len(current) + len(para) < chunk_size:
+
+                current += "\n" + para
+
+            else:
+
+                chunks.append(current)
+
+                current = para
+
+        if current.strip():
+            chunks.append(current)
+
+        return chunks
 
     # =====================================================
     # PROMPT BUILDER
@@ -156,15 +233,68 @@ class PDFAgent:
 
         self._last_extraction = extraction
 
-        pdf_text = extraction["text"][:800]
+        pdf_text = extraction["text"]
+
+        chunks = self.chunk_text(pdf_text)
+
+        print(
+            f"\n[PDF DEBUG] "
+            f"TOTAL CHUNKS: {len(chunks)}"
+        )
+
+        summarized_chunks = []
+
+        for idx, chunk in enumerate(chunks, 1):
+
+            print(
+                f"\n[PDF DEBUG] "
+                f"SUMMARIZING CHUNK {idx}"
+            )
+
+            with self.tracer.span(
+                event_type="pdf_chunk_summary",
+                name=f"PDFExtractor.chunk_{idx}",
+            ):
+
+                chunk_prompt = f"""
+Summarize this PDF chunk briefly.
+
+PDF Chunk:
+{chunk[:1200]}
+"""
+
+                chunk_summary = self._ollama.generate(
+                    chunk_prompt,
+                    temperature=0.2,
+                    max_tokens=200,
+                )
+
+                summarized_chunks.append(
+                    f"Chunk {idx} Summary:\n{chunk_summary}"
+                )
+
+            print(
+                f"[PDF DEBUG] "
+                f"CHUNK {idx} SUMMARY COMPLETE"
+            )
+
+        combined_summary = "\n\n".join(
+            summarized_chunks
+        )
+
+        print(
+            f"\n[PDF DEBUG] "
+            f"BUILDING FINAL PROMPT"
+        )
 
         if task == "summarize":
 
             return f"""
-Summarize this PDF.
+Generate a final concise summary
+from these chunk summaries.
 
-PDF Content:
-{pdf_text}
+Chunk Summaries:
+{combined_summary}
 """
 
         elif task == "classify":
@@ -181,8 +311,8 @@ Classify this document into ONE category:
 
 {categories_str}
 
-PDF Content:
-{pdf_text}
+Chunk Summaries:
+{combined_summary}
 """
 
         elif task == "extract_info":
@@ -199,15 +329,15 @@ Extract these fields:
 
 {fields_str}
 
-PDF Content:
-{pdf_text}
+Chunk Summaries:
+{combined_summary}
 """
 
         return f"""
 Analyze this PDF.
 
-PDF Content:
-{pdf_text}
+Chunk Summaries:
+{combined_summary}
 """
 
     # =====================================================

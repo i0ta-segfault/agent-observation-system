@@ -39,27 +39,50 @@ class TraceEventModel(BaseModel):
 
     metadata: Dict[str, Any] = {}
 
+    start_iso: Optional[str] = None
+    end_iso: Optional[str] = None
+
 
 # =========================================================
 # INGESTION ENDPOINT
 # =========================================================
 
 @app.post("/events")
-
 async def ingest_events(
     events: List[TraceEventModel]
 ):
 
+    stored = 0
+
     for event in events:
-        store_event(event.dict())
+
+        try:
+
+            store_event(event.dict())
+
+            stored += 1
+
+        except Exception as exc:
+
+            print(
+                f"[GATEWAY ERROR] "
+                f"Failed storing event: {exc}"
+            )
 
     return {
         "status": "ok",
         "received": len(events),
+        "stored": stored,
     }
 
 
-@app.get("/health")
+# =========================================================
+# HEALTH CHECK
+# =========================================================
 
+@app.get("/health")
 async def health():
-    return {"status": "healthy"}
+
+    return {
+        "status": "healthy"
+    }

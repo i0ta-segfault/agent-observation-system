@@ -10,11 +10,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from agents import EmailAgent, PDFAgent
-
 from agents.instrumentation import (
     instrument,
     ConsoleExporter,
-    HTTPExporter
+    HTTPExporter,
+    shutdown_tracer
 )
 
 
@@ -190,7 +190,8 @@ def main():
     print("\n" + "=" * 60)
     print("TESTING COMPLETE")
     print("=" * 60)
-
+    
+    shutdown_tracer()
 
 if __name__ == "__main__":
     main()
