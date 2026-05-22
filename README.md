@@ -1,6 +1,6 @@
 # LLM Agent Observation System
 
-An end-to-end observability and evaluation system for LLM-powered agents using local models, tracing instrumentation, SQLite persistence, FastAPI, and Grafana dashboards.
+An end-to-end observability, analysis, and evaluation system for LLM-powered agents using local models, tracing instrumentation, SQLite persistence, FastAPI, and Grafana dashboards.
 
 ---
 
@@ -19,43 +19,74 @@ The system provides:
 - Error tracking
 - Persistent telemetry storage
 - Grafana dashboard visualization
+- AI-powered workflow analysis
+- Offline evaluation pipelines
 - LangGraph-compatible instrumentation wrappers
 
-The goal is to monitor and analyze the internal execution flow of AI agents similarly to how observability platforms monitor distributed backend systems.
+The goal is to monitor, analyze, and evaluate the internal execution flow of AI agents similarly to how observability platforms monitor distributed backend systems.
 
 ---
 
-# 🏗️ System Architecture
+# 🏗️ Updated System Architecture
 
 ```text
-User/Test Script
-      │
-      ▼
-FastAPI Telemetry Gateway
-      │
-      ▼
-Instrumented Agent Runtime
-      │
-      ├── EmailAgent
-      ├── PDFAgent
-      └── LangGraph-compatible nodes
-      │
-      ▼
-Ollama Local LLM
-      │
-      ▼
-Tracing + Span Generation
-      │
-      ▼
-SQLite Observability Store
-      │
-      ▼
-Grafana Dashboards
+                         ┌──────────────────────┐
+                         │  User / Test Script  │
+                         └──────────┬───────────┘
+                                    │
+                                    ▼
+                     ┌──────────────────────────┐
+                     │ Instrumented Agent Layer │
+                     └──────────┬───────────────┘
+                                │
+          ┌─────────────────────┼─────────────────────┐
+          │                     │                     │
+          ▼                     ▼                     ▼
+   EmailAgent             PDFExtractor        LangGraph Nodes
+          │                     │                     │
+          └─────────────────────┼─────────────────────┘
+                                │
+                                ▼
+                     ┌──────────────────────────┐
+                     │   Ollama Local Models    │
+                     │ (Qwen / Phi3 / Llama3)   │
+                     └──────────┬───────────────┘
+                                │
+                                ▼
+                     ┌──────────────────────────┐
+                     │ Runtime Instrumentation  │
+                     │   + Span Generation      │
+                     └──────────┬───────────────┘
+                                │
+                                ▼
+                     ┌──────────────────────────┐
+                     │ FastAPI Telemetry Gateway│
+                     └──────────┬───────────────┘
+                                │
+                                ▼
+                     ┌──────────────────────────┐
+                     │     observability.db     │
+                     │  traces + spans storage  │
+                     └──────────┬───────────────┘
+                                │
+               ┌────────────────┴────────────────┐
+               │                                 │
+               ▼                                 ▼
+    analysis/trace_analyzer.py         evaluation/evaluate.py
+               │                                 │
+               ▼                                 ▼
+      analysis_reports.db             evaluation_results.db
+               │                                 │
+               └────────────────┬────────────────┘
+                                ▼
+                     ┌──────────────────────────┐
+                     │    Grafana Dashboards    │
+                     └──────────────────────────┘
 ```
 
 ---
 
-# 🔭 Observability Pipeline
+# 🔭 Observability Features
 
 The system includes a lightweight observability stack inspired by OpenTelemetry.
 
@@ -64,16 +95,18 @@ The system includes a lightweight observability stack inspired by OpenTelemetry.
 - Workflow-level tracing
 - Nested spans
 - Span hierarchy
-- Latency tracking
+- Runtime latency tracking
 - Token estimation
 - Error monitoring
-- Trace persistence
-- Dashboard visualization
+- Persistent telemetry storage
 - Workflow DAG reconstruction
+- AI-powered trace analysis
+- Offline workflow evaluation
+- Multi-model benchmarking
 
 ---
 
-# 📡 Span Types
+# 📡 Instrumented Span Types
 
 The runtime automatically instruments:
 
@@ -94,7 +127,9 @@ allowing complete workflow reconstruction.
 
 # 🧠 Implemented Agents
 
-## 1. Email Classification Agent
+---
+
+# 1. Email Classification Agent
 
 Features:
 
@@ -103,6 +138,7 @@ Features:
 - Batch processing
 - Runtime tracing
 - Latency monitoring
+- Token monitoring
 
 Supported categories:
 
@@ -116,16 +152,17 @@ Supported categories:
 
 ---
 
-## 2. PDF Extraction Agent
+# 2. PDF Extraction Agent
 
 Features:
 
 - PDF text extraction
 - OCR support
-- Summarization
-- Classification
+- Multi-stage summarization
 - Information extraction
+- Chunk-based processing
 - Runtime tracing
+- Latency analysis
 
 Processing modes:
 
@@ -140,7 +177,7 @@ Processing modes:
 
 The project uses composition and wrappers instead of inheritance-heavy design.
 
-## Core Runtime Flow
+## Runtime Flow
 
 ```text
 prompt_builder
@@ -156,15 +193,18 @@ with automatic tracing and instrumentation around every stage.
 
 # 📦 Core Components
 
+---
+
 ## `agents/runtime.py`
 
 Generic runtime responsible for:
 
-- orchestrating execution
+- workflow orchestration
 - tracing spans
 - handling errors
-- token estimation
 - latency tracking
+- token estimation
+- exporter integration
 
 ---
 
@@ -175,10 +215,10 @@ Provides:
 - tracing
 - spans
 - exporters
-- instrumentation wrappers
+- runtime wrappers
 - token estimation
-- event persistence
-- LangGraph compatibility
+- telemetry exporting
+- LangGraph-compatible instrumentation
 
 ---
 
@@ -200,33 +240,104 @@ and stores telemetry into SQLite.
 
 SQLite persistence layer for traces and spans.
 
+Stores:
+
+- traces
+- spans
+- tokens
+- latency
+- metadata
+- errors
+- timestamps
+
+---
+
+## `analysis/trace_analyzer.py`
+
+Offline AI-powered workflow analysis system.
+
+Reads traces from:
+
+```text
+observability.db
+```
+
+Generates optimization reports into:
+
+```text
+analysis_reports.db
+```
+
+Capabilities:
+
+- bottleneck analysis
+- latency analysis
+- optimization recommendations
+- workflow summaries
+- failure analysis
+
+---
+
+## `evaluation/evaluate.py`
+
+Offline evaluation pipeline for Email Classification workflows.
+
+Reads workflow traces from:
+
+```text
+observability.db
+```
+
+Compares against manually defined ground-truth datasets and stores results in:
+
+```text
+evaluation_results.db
+```
+
+Current evaluation support:
+
+- EmailClassifier only
+
+Metrics:
+
+- classification accuracy
+- latency
+- token usage
+- prediction correctness
+
 ---
 
 # 📦 Installation
 
 ## Prerequisites
 
-### 1. Install Ollama
+---
+
+## 1. Install Ollama
 
 Download:
 
+```text
 https://ollama.ai/download
+```
 
 Pull a model:
 
 ```bash
-ollama pull phi3:mini
+ollama pull qwen2.5:3b
 ```
 
-or:
+Optional models:
 
 ```bash
+ollama pull phi3:mini
 ollama pull llama3
+ollama pull tinyllama
 ```
 
 ---
 
-### 2. Python 3.9+
+## 2. Python 3.9+
 
 Required.
 
@@ -234,10 +345,13 @@ Required.
 
 # 🔧 Setup
 
+---
+
 ## Clone Repository
 
 ```bash
-git clone https://github.com/nandikabansal/agent-observation-system.git  # if PR not yet merged use this link https://github.com/i0ta-segfault/agent-observation-system.git
+git clone https://github.com/i0ta-segfault/agent-observation-system.git
+
 cd agent-observation-system
 ```
 
@@ -249,6 +363,7 @@ cd agent-observation-system
 
 ```powershell
 python -m venv venv
+
 .\venv\Scripts\activate
 ```
 
@@ -256,6 +371,7 @@ python -m venv venv
 
 ```bash
 python -m venv venv
+
 source venv/bin/activate
 ```
 
@@ -271,7 +387,9 @@ pip install -r requirements.txt
 
 # 🚀 Running The System
 
-## 1. Start Ollama
+---
+
+# 1. Start Ollama
 
 ```bash
 ollama serve
@@ -279,7 +397,7 @@ ollama serve
 
 ---
 
-## 2. Start FastAPI Gateway
+# 2. Start FastAPI Gateway
 
 From project root:
 
@@ -289,7 +407,7 @@ uvicorn gateway.main:app --reload
 
 ---
 
-## 3. Run Agent Tests
+# 3. Run Agent Tests
 
 ```bash
 python test_agents.py
@@ -297,50 +415,128 @@ python test_agents.py
 
 This will:
 
-- execute agents
-- generate traces
-- persist telemetry
-- populate SQLite database
+- execute workflows
+- generate spans
+- estimate tokens
+- export telemetry
+- populate observability database
 - feed Grafana dashboards
 
 ---
 
-# 🗄️ Observability Storage
+# 4. Run Workflow Analysis
 
-Telemetry is stored in:
+```bash
+cd analysis
 
-```text
-observability.db
+python trace_analyzer.py
 ```
 
-and optionally:
+This generates:
 
 ```text
-observability_llama3.db
+analysis_reports.db
 ```
 
-These databases contain:
+containing AI-generated workflow analysis reports.
+
+---
+
+# 5. Run Evaluation Pipeline
+
+```bash
+python evaluation/evaluate.py
+```
+
+This generates:
+
+```text
+evaluation_results.db
+```
+
+containing Email Classification evaluation metrics.
+
+---
+
+# 🗄️ Database Architecture
+
+---
+
+# 1. `observability.db`
+
+Primary telemetry database.
+
+Contains:
 
 - traces
 - spans
-- latency data
-- token estimates
-- failures
-- metadata
+- latency
+- tokens
+- errors
+- workflow metadata
+
+Used for:
+
+- observability dashboards
+- tracing
+- latency analysis
+- runtime monitoring
 
 ---
 
-# 📈 Grafana Dashboard Setup
+# 2. `analysis_reports.db`
 
-## Install Grafana OSS
+AI-generated workflow analysis reports.
+
+Generated by:
+
+```text
+analysis/trace_analyzer.py
+```
+
+Contains:
+
+- workflow summaries
+- bottleneck analysis
+- optimization recommendations
+- latency insights
+
+---
+
+# 3. `evaluation_results.db`
+
+Offline evaluation database.
+
+Current support:
+
+- EmailClassifier evaluation only
+
+Contains:
+
+- expected outputs
+- predicted outputs
+- correctness
+- latency
+- token usage
+- accuracy metrics
+
+---
+
+# 📈 Grafana Setup
+
+---
+
+# Install Grafana OSS
 
 Download:
 
+```text
 https://grafana.com/grafana/download
+```
 
 ---
 
-## Install SQLite Plugin
+# Install SQLite Plugin
 
 Inside Grafana `bin/` directory:
 
@@ -352,7 +548,7 @@ Restart Grafana afterward.
 
 ---
 
-## Start Grafana
+# Start Grafana
 
 ```powershell
 .\grafana.exe server
@@ -372,7 +568,7 @@ admin / admin
 
 ---
 
-# 🔌 Add SQLite Datasource
+# 🔌 Add SQLite Datasources
 
 Go to:
 
@@ -386,25 +582,25 @@ Add:
 frser-sqlite-datasource
 ```
 
----
+Create separate datasources for:
 
-## Database Path Examples
-
-### Windows
-
-```text
-D:\Programming\agent-observation-system\observability.db
-```
-
-### WSL
-
-```text
-/mnt/d/Programming/agent-observation-system/observability.db
-```
+- observability.db
+- analysis_reports.db
+- evaluation_results.db
 
 ---
 
 # 📊 Example Grafana Queries
+
+---
+
+# OBSERVABILITY DATABASE QUERIES
+
+Datasource:
+
+```text
+observability.db
+```
 
 ---
 
@@ -427,42 +623,53 @@ Time Series
 
 ---
 
-## Email Agent Latency
+## Workflow Success Rate
 
 ```sql
 SELECT
-  start_ts * 1000 AS time,
-  latency_seconds
+  name as workflow,
+
+  ROUND(
+    100.0 * SUM(success) / COUNT(*),
+    2
+  ) as success_rate
+
 FROM traces
+
 WHERE event_type = 'workflow'
-AND name = 'EmailClassifier'
-ORDER BY start_ts;
+
+GROUP BY name;
 ```
 
 Visualization:
 
 ```text
-Time Series
+Bar Chart
 ```
 
 ---
 
-## PDF Agent Latency
+## Token Usage by Workflow
 
 ```sql
 SELECT
-  start_ts * 1000 AS time,
-  latency_seconds
+  name,
+
+  SUM(tokens) as total_tokens
+
 FROM traces
+
 WHERE event_type = 'workflow'
-AND name = 'PDFExtractor'
-ORDER BY start_ts;
+
+GROUP BY name
+
+ORDER BY total_tokens DESC;
 ```
 
 Visualization:
 
 ```text
-Time Series
+Bar Chart
 ```
 
 ---
@@ -544,6 +751,84 @@ Table
 
 ---
 
+# ANALYSIS DATABASE QUERIES
+
+Datasource:
+
+```text
+analysis_reports.db
+```
+
+---
+
+## Workflow Bottlenecks
+
+```sql
+SELECT
+  workflow_name,
+  bottleneck_operation,
+  bottleneck_latency
+FROM analysis_reports
+ORDER BY bottleneck_latency DESC;
+```
+
+Visualization:
+
+```text
+Table
+```
+
+---
+
+## Workflow Analysis Summaries
+
+```sql
+SELECT
+  workflow_name,
+  summary,
+  recommendations
+FROM analysis_reports;
+```
+
+Visualization:
+
+```text
+Table
+```
+
+---
+
+# EVALUATION DATABASE QUERIES
+
+Datasource:
+
+```text
+evaluation_results.db
+```
+
+⚠ Current evaluation support is implemented only for the Email Classification workflow.
+
+---
+
+## Email Classifier Accuracy
+
+```sql
+SELECT
+  ROUND(
+    AVG(correct) * 100,
+    2
+  ) as accuracy_percent
+FROM evaluations;
+```
+
+Visualization:
+
+```text
+Gauge
+```
+
+---
+
 # 🧪 LangGraph Compatibility
 
 Current status:
@@ -571,113 +856,88 @@ wrapped_node = instrument_langgraph_node(
 
 # ✅ Phase 1 — Agent Framework
 
-Completed.
-
 Implemented:
 
 - Email Classification Agent
 - PDF Extraction Agent
-- Wrapper-based runtime architecture
-- Ollama local inference integration
+- Ollama integration
+- Runtime orchestration
 - Error handling
-- Test suite
 
 ---
 
 # ✅ Phase 2 — FastAPI Gateway
 
-Completed.
-
 Implemented:
 
-- FastAPI telemetry ingestion server
+- Telemetry ingestion server
 - Unified event pipeline
-- Request routing
-- SQLite integration
-- Telemetry persistence
+- SQLite persistence
+- Export pipeline
 
 ---
 
 # ✅ Phase 3 — Runtime Instrumentation
-
-Completed.
 
 Implemented:
 
 - Span tracing
 - Workflow tracing
 - Nested instrumentation
-- Trace IDs
 - Parent-child span relationships
 - Token estimation
-- Runtime wrappers
+- Exporters
 
 ---
 
 # ✅ Phase 4 — Observability Dashboarding
-
-Completed.
 
 Implemented:
 
 - SQLite persistence
 - Grafana integration
 - Dashboard panels
-- Latency visualization
-- Span distribution visualization
+- DAG reconstruction
 - Failure analysis
-- Workflow DAG reconstruction
+- Token visualization
 
 ---
 
-# 🚧 Phase 5 — Evaluation System
+# ✅ Phase 5 — Workflow Analysis System
+
+Implemented:
+
+- AI-powered trace analysis
+- Bottleneck detection
+- Workflow summarization
+- Optimization recommendations
+- Offline report generation
+
+---
+
+# 🚧 Phase 6 — Evaluation & Optimization
 
 In Progress.
 
-Planned Features:
+Current Features:
 
-- Automated benchmarking
-- Test datasets
-- Accuracy scoring
-- Hallucination analysis
-- Agent comparison
-- Response quality evaluation
-- Latency benchmarking across models
-- Evaluation reports
-
-Potential Stack:
-
-- pandas
-- scikit-learn
-- matplotlib
-
----
-
-# 🚧 Phase 6 — Optimization System
-
-In Progress.
+- Email classification evaluation
+- Ground-truth comparisons
+- Accuracy measurement
+- Offline evaluation pipeline
 
 Planned Features:
 
-- Cost simulation
-- Token optimization
-- Prompt optimization
-- Behavior analysis
-- Response caching
-- A/B testing
-- Adaptive routing
-- Multi-model optimization
-
-Potential Features:
-
-- Dynamic model switching
-- Prompt compression
-- Smart retries
-- Caching layers
+- hallucination analysis
+- model benchmarking
+- adaptive routing
+- prompt optimization
+- caching
+- multi-model orchestration
 
 ---
 
-# 📁 Project Structure
+# 📁 Updated Project Structure
 
 ```text
 agent-observation-system/
@@ -689,15 +949,28 @@ agent-observation-system/
 │   ├── email_agent.py
 │   └── pdf_agent.py
 │
+├── analysis/
+│   ├── trace_analyzer.py
+│   └── analysis_reports.db
+│
+├── evaluation/
+│   ├── evaluate.py
+│   ├── evaluation_storage.py
+│   └── ground_truth.py
+│
 ├── gateway/
 │   ├── main.py
-│   └── storage.py
+│   ├── storage.py
+│   └── models.py
+│
+├── test_data/
 │
 ├── observability.db
 ├── observability_llama3.db
+├── evaluation_results.db
 ├── test_agents.py
-├── requirements.txt
 ├── QUICKSTART.md
+├── requirements.txt
 └── README.md
 ```
 
@@ -717,9 +990,10 @@ agent-observation-system/
 
 ## AI Runtime
 
-- Llama3
+- Qwen2.5
 - Phi3
-- Mistral
+- Llama3
+- TinyLlama
 
 ---
 
@@ -734,7 +1008,9 @@ agent-observation-system/
 
 Included sample databases:
 
-- `observability.db`
-- `observability_llama3.db`
+- observability.db
+- observability_llama3.db
 
-can be directly mounted into Grafana for instant dashboard visualization without rerunning agents.
+can be directly mounted into Grafana for instant visualization without rerunning workflows.
+
+The evaluation system currently supports only Email Classification workflows.
